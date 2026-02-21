@@ -5,8 +5,8 @@ import (
 )
 
 type command struct {
-	name string
-	args []string
+	Name string
+	Args []string
 }
 
 type cmdHandlerFunc func(*state, command) error
@@ -15,20 +15,16 @@ type commands struct {
 	handlers map[string]cmdHandlerFunc
 }
 
+func (cmds *commands) register(name string, handler cmdHandlerFunc) {
+	cmds.handlers[name] = handler
+}
+
 func (cmds *commands) run(s *state, cmd command) error {
-	handler, exists := cmds.handlers[cmd.name]
+	handler, exists := cmds.handlers[cmd.Name]
 	if !exists {
-		return fmt.Errorf("Not such command '%s'", cmd.name)
+		return fmt.Errorf("Not such command '%s'", cmd.Name)
 	}
 
 	return handler(s, cmd)
 }
 
-func (cmds *commands) register(name string, handler cmdHandlerFunc) error {
-	if exists := cmds.handlers[name]; exists != nil {
-		return fmt.Errorf("Attempted to register duplicate command '%s'", name)
-	}
-
-	cmds.handlers[name] = handler
-	return nil
-}
