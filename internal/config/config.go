@@ -2,8 +2,8 @@ package config
 
 import (
 	"os"
-	"fmt"
 	"encoding/json"
+	"path/filepath"
 )
 
 const configName = ".gatorconfig.json"
@@ -39,18 +39,13 @@ func Read() (Config, error) {
 	return config, nil
 }
 
-func (config *Config) Print() {
-	fmt.Printf("Current %s:\n", configName)
-	fmt.Printf("%#v\n", config)
-}
-
 func getConfigFilePath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
 
-	path := homeDir + "/" + configName
+	path := filepath.Join(homeDir,configName)
 	return path, nil
 }
 
