@@ -3,12 +3,17 @@ package main
 import (
 	"log"
 	"os"
+	"database/sql"
 
 	"github.com/dylansbyrd/gator/internal/config"
+	"github.com/dylansbyrd/gator/internal/database"
+
+	_ "github.com/lib/pq"
 )
 
 type state struct {
 	cfg *config.Config
+	db  *database.Queries
 }
 
 func main() {
@@ -17,10 +22,22 @@ func main() {
 		log.Fatalf("Unable to read config due to error: %v", err)
 	}
 
-	s := state{&cfg}
+	db, err := sql.Open("postgres", cfg.DbUrl)
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v", err)
+	}
+	defer db.Close()
+	dbQueries := database.New(db)
+
+	s := state{
+		cfg: &cfg,
+		db: dbQueries,
+	}
 
 	cmds := commands{make(map[string]cmdHandlerFunc)}
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerReset)
 
 	programArgs := os.Args
 	if len(programArgs) < 2 {
@@ -31,6 +48,6 @@ func main() {
 	cmdArgs := programArgs[2:]
 	err = cmds.run(&s, command{cmdName, cmdArgs})
 	if err != nil {
-		log.Fatalf("Error running command %s: %v", cmdName, err)
+		log.Fatalf("%v", err)
 	}
 }
