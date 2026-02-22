@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"errors"
 
 	"github.com/dylansbyrd/gator/internal/database"
 	"github.com/google/uuid"
@@ -39,8 +40,8 @@ func handlerRegister(s *state, cmd command) error {
 	user, err := s.db.CreateUser(context.Background(), 
 		database.CreateUserParams{
 			ID: uuid.New(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
 			Name: username,
 		});
 
@@ -67,5 +68,90 @@ func handlerReset(s* state, cmd command) error {
 
 	fmt.Printf("Database reset.\n")
 	s.cfg.SetUser("")
+	return nil
+}
+
+func handlerUsers(s* state, cmd command) error {
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to fetch users from database: %w", err)
+	}
+
+	for _, user := range users {
+		if user.Name == s.cfg.CurrentUserName {
+			fmt.Printf("* %s (current)\n", user.Name)
+		} else {
+			fmt.Printf("* %s\n", user.Name)
+		}
+	}
+	return nil;
+}
+
+func handlerAgg(s* state, cmd command) error {
+	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if err != nil {
+		return fmt.Errorf("failed to fetch feed: %w", err)
+	}
+
+	fmt.Printf("%#v\n", feed)
+
+	return nil
+}
+
+func handlerAddFeed(s* state, cmd command) error {
+	if len(cmd.Args) != 2 {
+		return fmt.Errorf("Usage: %s <name> <url>", cmd.Name)
+	}
+
+	currentUsername := s.cfg.CurrentUserName
+	if currentUsername == "" {
+		return errors.New("No current user. Please log in.")
+	}
+
+	ctx := context.Background()
+	currentUser, err := s.db.GetUser(ctx, currentUsername)
+	if err != nil {
+		return fmt.Errorf("Failed getting current user: %w", err)
+	}
+
+	feed, err := s.db.CreateFeed(ctx,
+		database.CreateFeedParams{
+			ID: uuid.New(),
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+			Name: cmd.Args[0],
+			Url: cmd.Args[1],
+			UserID: currentUser.ID,
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("Error creating feed: %w", err)
+	}
+
+	fmt.Printf("Feed %s created.\n", feed.Name)
+	log.Printf("New feed: %#v", feed)
+	return nil
+}
+
+func handlerFeeds(s* state, cmd command) error {
+	ctx := context.Background()
+	feeds, err := s.db.GetFeeds(ctx)
+	if err != nil {
+		return fmt.Errorf("Error fetching feeds: %w", err)
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("*%s*\n", feed.Name)
+		fmt.Printf("%s\n", feed.Url)
+		
+		user, err := s.db.GetUserById(ctx, feed.UserID)
+		if err != nil {
+			// I don't love erroring out when we're mid print. May be worth storing the results and printing later?
+			return fmt.Errorf("Failed to find user with id %v: %w", feed.UserID, err)
+		}
+		fmt.Printf("Created by %s\n", user.Name)
+		fmt.Println()
+	}
+
 	return nil
 }
