@@ -128,8 +128,22 @@ func handlerAddFeed(s* state, cmd command) error {
 		return fmt.Errorf("Error creating feed: %w", err)
 	}
 
+	feedFollow, err := s.db.CreateFeedFollow(ctx, database.CreateFeedFollowParams{
+		ID: uuid.New(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		UserID: currentUser.ID,
+		FeedID: feed.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to follow feed: %w", err)
+	}
+
 	fmt.Printf("Feed %s created.\n", feed.Name)
-	log.Printf("New feed: %#v", feed)
+	log.Printf("New feed: %#v\n", feed)
+	fmt.Println("Feed followed successfully.")
+	log.Printf("Feed follow: %#v", feedFollow)
+
 	return nil
 }
 
@@ -153,5 +167,71 @@ func handlerFeeds(s* state, cmd command) error {
 		fmt.Println()
 	}
 
+	return nil
+}
+
+func handlerFollow(s* state, cmd command) error {
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("Usage: %s <url>", cmd.Name)
+	}
+
+	currentUsername := s.cfg.CurrentUserName
+	if currentUsername == "" {
+		return errors.New("No current user. Please log in.")
+	}
+
+	ctx := context.Background()
+	currentUser, err := s.db.GetUser(ctx, currentUsername)
+	if err != nil {
+		return fmt.Errorf("Failed getting current user: %w", err)
+	}
+
+	feedUrl := cmd.Args[0]
+	feed, err := s.db.GetFeedByUrl(ctx, feedUrl)
+	if err != nil {
+		return fmt.Errorf("Failed to find feed %s: %w", feedUrl, err)
+	}
+
+	feedFollowRow, err := s.db.CreateFeedFollow(ctx, database.CreateFeedFollowParams{
+		ID: uuid.New(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		UserID: currentUser.ID,
+		FeedID: feed.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("Failed to follow feed: %w", err)
+	}
+
+	fmt.Printf("User %s successfully followed feed %s.\n", feedFollowRow.UserName, feedFollowRow.FeedName)
+	return nil
+}
+
+func handlerFollowing(s* state, cmd command) error {
+	currentUsername := s.cfg.CurrentUserName
+	if currentUsername == "" {
+		return errors.New("No current user. Please log in.")
+	}
+
+	ctx := context.Background()
+	currentUser, err := s.db.GetUser(ctx, currentUsername)
+	if err != nil {
+		return fmt.Errorf("Failed getting current user: %w", err)
+	}
+
+	followedFeeds, err := s.db.GetFeedFollowsForUser(ctx, currentUser.ID)
+	if err != nil {
+		return fmt.Errorf("Failed getting feeds for current user: %w", err)
+	}
+
+	if len(followedFeeds) == 0 {
+		fmt.Printf("User %s is not currently following any feeds.\n", currentUsername)
+		return nil
+	}
+
+	fmt.Printf("Feed follows for user %s:\n", currentUsername)
+	for _, followedFeed := range followedFeeds {
+		fmt.Printf("%s\n", followedFeed.FeedName)
+	}
 	return nil
 }
