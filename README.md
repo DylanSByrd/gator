@@ -7,7 +7,7 @@ Requires Postgres version 15+
 Built and tested for WSL
 
 ## Installation
-To install, download the repository and run `go install` inside the directory.
+`go install github.com/dylansbyrd/gator@latest`
 
 ## Configuration
 Gator configuration is specified in a `.gatorconfig.json` file stored in the home directory. The following fields are
