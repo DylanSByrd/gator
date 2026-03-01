@@ -138,7 +138,7 @@ func scrapeFeeds(s* state) error {
 		}
 	}
 
-	fmt.Printf("Feed %s collected, %v posts found", feedDAO.Name, len(feed.Channel.Items))
+	fmt.Printf("Feed %s collected, %v posts found\n", feedDAO.Name, len(feed.Channel.Items))
 	return nil
 }
 
